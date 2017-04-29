@@ -3,7 +3,10 @@ extern      printf
 global      _start      ;must be declared for linker (ld)
 
 _start:                 ;tell linker entry point
-    mov     [SP0], esp  ;store bottom of the stack
+    mov     [RS0], esp  ;bottom of return stack
+    mov     ebp, esp    ;top    of return stack
+    add     esp, 1024   ;return stack 1kb (totally oversized, but whatevs)
+    mov     [SP0], esp  ;bottom of (data) stack
     mov     esi, code   ;initialize forth instruction pointer (program counter)
     jmp     next        ;run!
 
@@ -11,6 +14,19 @@ next:
     mov     eax, [esi]  ;get address of next instruction
     add     esi, 0x4    ;advance forth instruction pointer
     jmp     eax         ;execute next instruction
+
+docolon:
+    mov [ebp], esi      ;push forth instruction pointer
+    sub ebp, 4
+    mov eax, [esi - 4]  ;get caller of docolon
+    add eax, 8          ;skip docolon + nops
+    mov esi, eax
+    jmp next            ; execute
+
+exit:
+    add ebp, 4
+    mov esi, [ebp]      ;pop forth instruction pointer
+    jmp next
 
 bye:
     mov     ebx,0       ;error_code
@@ -74,27 +90,43 @@ star:
     push    eax         ; ignore edx.
     jmp     next
 
-fortythree:
-    push    43
-    jmp     next
-
 three:
     push    3
     jmp     next
 
-code:
-    dd      fortythree
-    dd      three
+square:
+    jmp     docolon
+    nop
+    nop
+    nop
     dd      dup
     dd      star
-    dd      dots
-    dd      dots
+    dd      exit
+
+quadruplethree:
+    jmp     docolon
+    nop
+    nop
+    nop
+    dd      three
+    dd      square
+    dd      square
+    dd      exit
+
+code:
+    dd      three
+    dd      dup
+    dd      square
+    dd      square
+    dd      dot
+    dd      quadruplethree
     dd      dot
     dd      bye
 
 section     .data
 
 SP0             dd 0x0
+RS0             dd 0x0
 
 fmt_stacksize   db  '<%d>',0x0
 fmt_int         db  '%d',0x0
