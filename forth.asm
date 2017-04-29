@@ -11,8 +11,7 @@ _start:                 ;tell linker entry point
     jmp     next        ;run!
 
 next:
-    mov     eax, [esi]  ;get address of next instruction
-    add     esi, 0x4    ;advance forth instruction pointer
+    lodsd               ;fetch [esi] into eax and increment esi.
     jmp     eax         ;execute next instruction
 
 docolon:
