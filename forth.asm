@@ -62,7 +62,7 @@ dots:                   ;prints stacksize and stack values
     call    printf
     add     esp, 4
 
-    sub     ebx, 4 ; bottom of stack below first value
+    sub     ebx, 4      ;next value starting from base of stack
     mov     eax, [ebx]
     push    eax
     push    fmt_int
