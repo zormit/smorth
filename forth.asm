@@ -61,9 +61,9 @@ dots:
 
     mov     ebx, [SP0]
 
-.loop:
+.dotsloop:
     cmp     ebx, esp    ;are we at top of stack?
-    je      .end
+    je      .dotsend
 
     ;print space
     push    fmt_space
@@ -79,9 +79,9 @@ dots:
     call    printf
     add     esp, 8
 
-    jmp     .loop
+    jmp     .dotsloop
 
-.end:
+.dotsend:
     ;print newline
     push    fmt_newline
     call    printf
