@@ -102,6 +102,8 @@ star:
     push    eax         ; ignore edx.
     jmp     next
 
+;;;;;;;;;;;;;; COMPOSITE WORDS ;;;;;;;;;;;;;;;;;
+
 square:
     jmp     docolon
     nop
@@ -121,6 +123,8 @@ quadruplethree:
     dd      square
     dd      square
     dd      exit
+
+;;;;;;;;;;;;;; COMPILED FORTH CODE ;;;;;;;;;;;;;;;;;
 
 code:
     dd      doliteral
