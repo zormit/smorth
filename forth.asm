@@ -150,7 +150,7 @@ star:
 
 ;;;;;;;;;;;;;; COMPOSITE WORDS ;;;;;;;;;;;;;;;;;
 
-blank: ;( -- 32)        ; it seems bl is a nasm reserved word.
+blank: ;( -- 32)        ; bl is reserved: it's a register
     jmp     docolon
     dd      doliteral
     dd      32
