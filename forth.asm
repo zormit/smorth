@@ -46,11 +46,14 @@ dot:
     add     esp, 4
     jmp     next
 
-dots:                   ;prints stacksize and stack values
+dots:
+;prints stacksize and stack values like gforth:
+;<<stacksize>> <val 1> <val 2> ... <val n>
     mov     eax, [SP0]
     sub     eax, esp
     sar     eax, 2
 
+    ;print stacksize
     push    eax
     push    fmt_stacksize
     call    printf
@@ -59,22 +62,27 @@ dots:                   ;prints stacksize and stack values
     mov     ebx, [SP0]
 
 .loop:
-    cmp     ebx, esp
+    cmp     ebx, esp    ;are we at top of stack?
     je      .end
 
+    ;print space
     push    fmt_space
     call    printf
     add     esp, 4
 
     sub     ebx, 4      ;next value starting from base of stack
     mov     eax, [ebx]
+
+    ;print value
     push    eax
     push    fmt_int
     call    printf
     add     esp, 8
+
     jmp     .loop
 
 .end:
+    ;print newline
     push    fmt_newline
     call    printf
     add     esp, 4
