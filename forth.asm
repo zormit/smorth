@@ -89,6 +89,36 @@ dots:
 
     jmp     next
 
+cword: ;( ch "token" -- str) ;pushes wordbf -- will overwrite prev word
+    pop     ebx         ;fetch ch
+
+    push    esi         ;store registers
+    push    edi
+
+    mov     esi, [inputstreampt] ;src of next word
+    mov     edi, wordbf          ;dst of next word
+
+.cwordloop:
+    lodsb
+    ;next char == ch? -- skip it and terminate
+    cmp     al, bl
+    je      .cwordend
+    stosb
+    jmp     .cwordloop
+
+.cwordend:
+    ;0-terminate
+    mov     al, 0x0
+    stosb
+
+    mov     [inputstreampt], esi ; write back how far we got.
+
+    pop     edi         ;restore registers
+    pop     esi
+
+    push    wordbf
+    jmp     next
+
 ;;;;;;;;;;;;;; NATIVE STACK OPERATORS ;;;;;;;;;;;
 
 dup: ;( a -- a a)
@@ -153,7 +183,7 @@ star:
 blank: ;( -- 32)        ; bl is reserved: it's a register
     jmp     docolon
     dd      doliteral
-    dd      32
+    dd      32          ; ' ' <SPACE>
     dd      exit
 
 square:
@@ -192,7 +222,17 @@ teststackops:
 
 code:
     dd      blank
-    dd      dot
+    dd      cword
+    dd      blank
+    dd      cword
+    dd      blank
+    dd      cword
+    dd      blank
+    dd      cword
+    dd      blank
+    dd      cword
+    dd      blank
+    dd      cword
     dd      bye
 
 section     .data
@@ -204,3 +244,8 @@ fmt_stacksize   db  '<%d>',0x0
 fmt_int         db  '%d',0x0
 fmt_space       db  ' ',0x0
 fmt_newline     db  0xa,0x0
+
+wordbf          times 32 db 0
+
+inputstream     db  'DOLITERAL 3 DUP SQUARE . BYE',0x0
+inputstreampt   dd  inputstream
