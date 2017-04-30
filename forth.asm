@@ -89,11 +89,57 @@ dots:
 
     jmp     next
 
-dup:
+;;;;;;;;;;;;;; NATIVE STACK OPERATORS ;;;;;;;;;;;
+
+dup: ;( a -- a a)
     pop     eax
     push    eax
     push    eax
     jmp     next
+
+swap: ;( a b -- b a)
+    pop     ebx
+    pop     eax
+    push    ebx
+    push    eax
+    jmp     next
+
+drop: ;( a -- )
+    pop     eax
+    jmp     next
+
+over: ;( a b -- a b a)
+    pop     ebx
+    pop     eax
+    push    eax
+    push    ebx
+    push    eax
+    jmp     next
+
+rot: ;( a b c -- b c a)
+    pop     ecx
+    pop     ebx
+    pop     eax
+    push    ebx
+    push    ecx
+    push    eax
+    jmp     next
+
+nip: ;( a b -- b)
+    pop     ebx
+    pop     eax
+    push    ebx
+    jmp     next
+
+tuck: ;( a b -- b a b)
+    pop     ebx
+    pop     eax
+    push    ebx
+    push    eax
+    push    ebx
+    jmp     next
+
+;;;;;;;;;;;;;; NATIVE MATH OPERATORS ;;;;;;;;;;;
 
 star:
     pop     eax
@@ -113,28 +159,39 @@ square:
     dd      star
     dd      exit
 
-quadruplethree:
+teststackops:
     jmp     docolon
     nop
     nop
     nop
     dd      doliteral
+    dd      1
+    dd      doliteral
+    dd      2
+    dd      swap
+    ;dd      dots    ; <2> 2 1
+    dd      over
+    ;dd      dots    ; <3> 2 1 2
+    dd      drop
+    ;dd      dots    ; <2> 2 1
+    dd      doliteral
     dd      3
-    dd      square
-    dd      square
+    dd      rot
+    ;dd      dots    ; <3> 1 3 2
+    dd      nip
+    ;dd      dots    ; <2> 1 2
+    dd      tuck
+    dd      dots    ; final result: <3> 2 1 2
+    dd      drop    ; clean up stack
+    dd      drop
+    dd      drop
     dd      exit
+
 
 ;;;;;;;;;;;;;; COMPILED FORTH CODE ;;;;;;;;;;;;;;;;;
 
 code:
-    dd      doliteral
-    dd      3
-    dd      dup
-    dd      square
-    dd      square
-    dd      dot
-    dd      quadruplethree
-    dd      dot
+    dd      teststackops
     dd      bye
 
 section     .data
