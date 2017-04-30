@@ -23,7 +23,7 @@ docolon:
     mov [ebp], esi      ;push forth instruction pointer
     sub ebp, 4
     mov eax, [esi - 4]  ;get caller of docolon
-    add eax, 8          ;skip docolon + nops
+    add eax, 5          ;skip jmp docolon instruction (5 bytes)
     mov esi, eax
     jmp next            ; execute
 
@@ -152,27 +152,18 @@ star:
 
 blank: ;( -- 32)        ; it seems bl is a nasm reserved word.
     jmp     docolon
-    nop
-    nop
-    nop
     dd      doliteral
     dd      32
     dd      exit
 
 square:
     jmp     docolon
-    nop
-    nop
-    nop
     dd      dup
     dd      star
     dd      exit
 
 teststackops:
     jmp     docolon
-    nop
-    nop
-    nop
     dd      doliteral
     dd      1
     dd      doliteral
