@@ -1,6 +1,6 @@
 section     .text
-extern      printf
-global      _start      ;must be declared for linker (ld)
+    extern  printf
+    global  _start      ;must be declared for linker (ld)
 
 _start:                 ;tell linker entry point
     mov     [RS0], esp  ;bottom of return stack
