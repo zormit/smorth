@@ -1,4 +1,4 @@
-all: forth
+all: forth.lst
 
 ASMFLAGS+= -w+orphan-labels
 forth.o: forth.asm
@@ -10,5 +10,8 @@ LDFLAGS+= -m elf_i386
 forth: forth.o
 	ld $(LDFLAGS) -s -o $@ $<
 
+forth.lst: forth
+	objdump -M intel -d $< > $@
+
 clean:
-	rm forth forth.o
+	rm forth forth.o forth.lst
