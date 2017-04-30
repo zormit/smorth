@@ -150,6 +150,15 @@ star:
 
 ;;;;;;;;;;;;;; COMPOSITE WORDS ;;;;;;;;;;;;;;;;;
 
+blank: ;( -- 32)        ; it seems bl is a nasm reserved word.
+    jmp     docolon
+    nop
+    nop
+    nop
+    dd      doliteral
+    dd      32
+    dd      exit
+
 square:
     jmp     docolon
     nop
@@ -191,7 +200,8 @@ teststackops:
 ;;;;;;;;;;;;;; COMPILED FORTH CODE ;;;;;;;;;;;;;;;;;
 
 code:
-    dd      teststackops
+    dd      blank
+    dd      dot
     dd      bye
 
 section     .data
