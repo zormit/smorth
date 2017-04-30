@@ -14,6 +14,11 @@ next:
     lodsd               ;fetch [esi] into eax and increment esi.
     jmp     eax         ;execute next instruction
 
+doliteral:
+    lodsd               ;fetch [esi] into eax and increment esi.
+    push     eax        ;push literal value to stack
+    jmp     next
+
 docolon:
     mov [ebp], esi      ;push forth instruction pointer
     sub ebp, 4
@@ -89,10 +94,6 @@ star:
     push    eax         ; ignore edx.
     jmp     next
 
-three:
-    push    3
-    jmp     next
-
 square:
     jmp     docolon
     nop
@@ -107,13 +108,15 @@ quadruplethree:
     nop
     nop
     nop
-    dd      three
+    dd      doliteral
+    dd      3
     dd      square
     dd      square
     dd      exit
 
 code:
-    dd      three
+    dd      doliteral
+    dd      3
     dd      dup
     dd      square
     dd      square
