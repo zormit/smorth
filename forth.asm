@@ -191,6 +191,10 @@ find: ;( str -- str | xt 0|1|-1)
     push    eax         ;0|-1|1
     jmp     next
 
+execute: ;( xt -- )
+    pop     ebx
+    jmp     ebx
+
 ;;;;;;;;;;;;;; NATIVE STACK OPERATORS ;;;;;;;;;;;
 
 dup: ;( a -- a a)
@@ -258,6 +262,13 @@ blank: ;( -- 32)        ; bl is reserved: it's a register
     dd      32          ; ' ' <SPACE>
     dd      exit
 
+wh_square:
+    istruc word_header
+        at w_nt,    dd wh_dot
+        at w_name,  db 'SQUARE', 0x0
+        at w_immed, db 0x0
+        at w_xt,    dd square
+    iend
 square:
     call    docolon
     dd      dup
@@ -293,25 +304,29 @@ teststackops:
 ;;;;;;;;;;;;;; COMPILED FORTH CODE ;;;;;;;;;;;;;;;;;
 
 code:
+    dd      doliteral
+    dd      43
     dd      blank
     dd      cword
     dd      find
+    dd      drop
+    dd      execute
     dd      blank
     dd      cword
     dd      find
+    dd      drop
+    dd      execute
     dd      blank
     dd      cword
     dd      find
-    dd      blank
-    dd      cword
-    dd      find
-    dd      bye
+    dd      drop
+    dd      execute
 
 section     .data
 
 SP0             dd 0x0
 RS0             dd 0x0
-LATEST          dd wh_dot   ;latest dict entry
+LATEST          dd wh_square   ;latest dict entry
 
 fmt_stacksize   db  '<%d>',0x0
 fmt_int         db  '%d',0x0
@@ -320,5 +335,5 @@ fmt_newline     db  0xa,0x0
 
 wordbf          times 32 db 0
 
-inputstream     db  'DOLITERAL 3 . BYE',0x0
+inputstream     db  'SQUARE . BYE',0x0
 inputstreampt   dd  inputstream
