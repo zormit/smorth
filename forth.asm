@@ -195,6 +195,26 @@ execute: ;( xt -- )
     pop     ebx
     jmp     ebx
 
+tonumber: ;( str -- n)
+    pop     ebx         ;str-addr
+    push    esi         ;store register
+    mov     esi, ebx
+    mov     eax, 0
+    mov     ebx, 0
+    mov     ecx, 10     ;base
+.nextch:
+    lodsb
+    test    al, al      ;0-terminator?
+    jz   .endofstr
+    imul    ebx, ecx
+    sub     al, 0x30    ;char to digit ('0':0x30)
+    add     ebx, eax
+    jmp     .nextch
+.endofstr:
+    pop     esi         ;restore register
+    push    ebx
+    jmp     next
+
 ;;;;;;;;;;;;;; NATIVE STACK OPERATORS ;;;;;;;;;;;
 
 dup: ;( a -- a a)
@@ -304,8 +324,11 @@ teststackops:
 ;;;;;;;;;;;;;; COMPILED FORTH CODE ;;;;;;;;;;;;;;;;;
 
 code:
-    dd      doliteral
-    dd      43
+    dd      blank
+    dd      cword
+    dd      find
+    dd      drop
+    dd      tonumber
     dd      blank
     dd      cword
     dd      find
@@ -335,5 +358,5 @@ fmt_newline     db  0xa,0x0
 
 wordbf          times 32 db 0
 
-inputstream     db  'SQUARE . BYE',0x0
+inputstream     db  '43 SQUARE . BYE',0x0
 inputstreampt   dd  inputstream
