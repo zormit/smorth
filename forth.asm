@@ -1,3 +1,12 @@
+struc       word_header ;size:4+23+1+4 = 32
+
+    w_nt:   resd    1   ;link address
+    w_name: resb    23  ;name
+    w_immed:resb    1   ;immediate flag
+    w_xt:   resd    1   ;code pointer
+
+endstruc
+
 section     .text
     extern  printf
     global  _start      ;must be declared for linker (ld)
@@ -14,6 +23,13 @@ next:
     lodsd               ;fetch [esi] into eax and increment esi.
     jmp     eax         ;execute next instruction
 
+wh_doliteral:
+    istruc word_header
+        at w_nt,    dd 0x0
+        at w_name,  db 'DOLITERAL', 0x0
+        at w_immed, db 0x0
+        at w_xt,    dd doliteral
+    iend
 doliteral:
     lodsd               ;fetch [esi] into eax and increment esi.
     push     eax        ;push literal value to stack
@@ -27,16 +43,37 @@ docolon:
     mov esi, eax
     jmp next            ; execute
 
+wh_exit:
+    istruc word_header
+        at w_nt,    dd wh_doliteral
+        at w_name,  db 'EXIT', 0x0
+        at w_immed, db 0x0
+        at w_xt,    dd exit
+    iend
 exit:
     add ebp, 4
     mov esi, [ebp]      ;pop forth instruction pointer
     jmp next
 
+wh_bye:
+    istruc word_header
+        at w_nt,    dd wh_exit
+        at w_name,  db 'BYE', 0x0
+        at w_immed, db 0x0
+        at w_xt,    dd bye
+    iend
 bye:
     mov     ebx,0       ;error_code
     mov     eax,1       ;system call number (sys_exit)
     int     0x80        ;call kernel
 
+wh_dot:
+    istruc word_header
+        at w_nt,    dd wh_bye
+        at w_name,  db '.', 0x0
+        at w_immed, db 0x0
+        at w_xt,    dd dot
+    iend
 dot:
     push    fmt_int
     call    printf
@@ -117,6 +154,43 @@ cword: ;( ch "token" -- str) ;pushes wordbf -- will overwrite prev word
     pop     esi
 
     push    wordbf
+    jmp     next
+
+find: ;( str -- str | xt 0|1|-1)
+    pop     ebx         ;fetch str-addr
+    push    esi         ;store registers
+    push    edi
+    mov     eax, [LATEST];first word
+
+.findwordloop:
+    mov     esi, ebx
+    lea     edi, [eax+w_name]
+.findcmploop:
+    cmpsb
+    jne     .nextword
+    cmp     byte [esi], 0x0 ;end of string?
+    jz      .found
+    jmp     .findcmploop
+.nextword:
+    mov     eax, [eax+w_nt] ;load link address
+    test    eax, eax        ;end of dictionary?
+    jz      .notfound
+    jmp     .findwordloop   ;try next word
+.found:
+    mov     ebx, [eax+w_xt]
+    mov     al, [eax+w_immed]
+    test    al, al
+    jz      .setimmed
+    mov     eax, -1
+    jmp     .notfound
+.setimmed:
+    mov     eax, 1
+.notfound:
+    pop     edi         ;restore registers
+    pop     esi
+
+    push    ebx         ;str|xt
+    push    eax         ;0|-1|1
     jmp     next
 
 ;;;;;;;;;;;;;; NATIVE STACK OPERATORS ;;;;;;;;;;;
@@ -223,22 +297,23 @@ teststackops:
 code:
     dd      blank
     dd      cword
+    dd      find
     dd      blank
     dd      cword
+    dd      find
     dd      blank
     dd      cword
+    dd      find
     dd      blank
     dd      cword
-    dd      blank
-    dd      cword
-    dd      blank
-    dd      cword
+    dd      find
     dd      bye
 
 section     .data
 
 SP0             dd 0x0
 RS0             dd 0x0
+LATEST          dd wh_dot   ;latest dict entry
 
 fmt_stacksize   db  '<%d>',0x0
 fmt_int         db  '%d',0x0
@@ -247,5 +322,5 @@ fmt_newline     db  0xa,0x0
 
 wordbf          times 32 db 0
 
-inputstream     db  'DOLITERAL 3 DUP SQUARE . BYE',0x0
+inputstream     db  'DOLITERAL 3 . BYE',0x0
 inputstreampt   dd  inputstream
