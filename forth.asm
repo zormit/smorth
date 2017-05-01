@@ -38,10 +38,8 @@ doliteral:
 docolon:
     mov [ebp], esi      ;push forth instruction pointer
     sub ebp, 4
-    mov eax, [esi - 4]  ;get caller of docolon
-    add eax, 5          ;skip jmp docolon instruction (5 bytes)
-    mov esi, eax
-    jmp next            ; execute
+    pop esi             ;return address to caller of docolon
+    jmp next            ;execute next instruction at caller of docolon
 
 wh_exit:
     istruc word_header
@@ -255,19 +253,19 @@ star:
 ;;;;;;;;;;;;;; COMPOSITE WORDS ;;;;;;;;;;;;;;;;;
 
 blank: ;( -- 32)        ; bl is reserved: it's a register
-    jmp     docolon
+    call    docolon
     dd      doliteral
     dd      32          ; ' ' <SPACE>
     dd      exit
 
 square:
-    jmp     docolon
+    call    docolon
     dd      dup
     dd      star
     dd      exit
 
 teststackops:
-    jmp     docolon
+    call    docolon
     dd      doliteral
     dd      1
     dd      doliteral
