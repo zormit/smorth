@@ -152,7 +152,9 @@ dict_entry find, 'FIND', 0x0 ;( str -- str | xt 0|1|-1)
 .findcmploop:
     cmpsb
     jne     .nextword
-    cmp     byte [esi], 0x0 ;end of string?
+    cmp     byte [esi], 0x0 ;end of searchstring?
+    jnz     .findcmploop
+    cmp     byte [edi], 0x0 ;end of found string?
     jz      .found
     jmp     .findcmploop
 .nextword:
