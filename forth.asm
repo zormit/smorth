@@ -203,6 +203,28 @@ dict_entry tonumber, '>NUMBER', 0x0 ;( str -- n)
     push    ebx
     jmp     next
 
+interpret_if:
+    ; if stack nozero, advance instruction pointer
+    pop     eax
+    test    eax, eax
+    jnz     .true
+    add     esi, 0x8
+    jmp     next
+.true:
+    jmp     next
+
+
+dict_entry interpret, 'INTERPRET-WORD', 0x0 ; ( str -- )
+    call    docolon
+    dd      blank
+    dd      cword
+    dd      find
+    dd      interpret_if
+    dd      execute
+    dd      exit
+    dd      tonumber
+    dd      exit
+
 ;;;;;;;;;;;;;; NATIVE STACK OPERATORS ;;;;;;;;;;;
 
 dict_entry dup, 'DUP', 0x0 ;( a -- a a)
@@ -305,26 +327,10 @@ teststackops:
 ;;;;;;;;;;;;;; COMPILED FORTH CODE ;;;;;;;;;;;;;;;;;
 
 code:
-    dd      blank
-    dd      cword
-    dd      find
-    dd      drop
-    dd      tonumber
-    dd      blank
-    dd      cword
-    dd      find
-    dd      drop
-    dd      execute
-    dd      blank
-    dd      cword
-    dd      find
-    dd      drop
-    dd      execute
-    dd      blank
-    dd      cword
-    dd      find
-    dd      drop
-    dd      execute
+    dd      interpret
+    dd      interpret
+    dd      interpret
+    dd      interpret
 
 section     .data
 
