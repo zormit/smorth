@@ -22,6 +22,7 @@ endstruc
 
 section     .text
     extern  printf
+    extern  scanf
     global  _start      ;must be declared for linker (ld)
 
 _start:                 ;tell linker entry point
@@ -225,6 +226,45 @@ dict_entry interpret, 'INTERPRET-WORD', 0x0 ; ( str -- )
     dd      tonumber
     dd      exit
 
+dict_entry iaccept, 'ACCEPT', 0x0 ; ( -- )
+    ; `ACCEPT ( -- )` reads a line into the input buffer.
+   push     inputstream
+   push     fmt_string
+   call     scanf
+   add      esp, 8 ; remove parameters
+   jmp      next
+
+reset_returnstack:
+    mov     esp, [RS0]  ; 1. Empty the return stack.
+    jmp     next
+
+interpret_again:
+    ; check if inputstreampt points to 0
+    push    esi
+    mov     esi, [inputstreampt] ;src of next word
+    lodsb
+    test    al, al      ;0-terminator?
+    jz   .endofstr
+    pop     esi
+    sub     esi, 0x8
+    jmp     next
+.endofstr:
+    pop     esi
+    jmp     next
+
+dict_entry quit, 'QUIT', 0x0 ; ( -- )
+    call    docolon
+    dd      reset_returnstack
+    ; 2. `ACCEPT` a line of input into the input buffer.
+    dd      iaccept
+    ; 3. `INTERPRET` the input buffer until empty.
+    dd      interpret
+    dd      interpret_again
+    ; reset input buffer
+    mov     eax, inputstream
+    mov     [inputstreampt], eax
+    ; 4. Repeat from 2.
+
 ;;;;;;;;;;;;;; NATIVE STACK OPERATORS ;;;;;;;;;;;
 
 dict_entry dup, 'DUP', 0x0 ;( a -- a a)
@@ -327,10 +367,7 @@ teststackops:
 ;;;;;;;;;;;;;; COMPILED FORTH CODE ;;;;;;;;;;;;;;;;;
 
 code:
-    dd      interpret
-    dd      interpret
-    dd      interpret
-    dd      interpret
+    dd      quit
 
 section     .data
 
@@ -342,8 +379,9 @@ fmt_stacksize   db  '<%d>',0x0
 fmt_int         db  '%d',0x0
 fmt_space       db  ' ',0x0
 fmt_newline     db  0xa,0x0
+fmt_string      db  '%s', 0x0
 
 wordbf          times 32 db 0
 
-inputstream     db  '43 SQUARE . BYE',0x0
+inputstream     times 512 db 0
 inputstreampt   dd  inputstream
