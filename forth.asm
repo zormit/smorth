@@ -7,8 +7,22 @@ struc       word_header ;size:4+23+1+4 = 32
 
 endstruc
 
+%define nametoken 0x0
+%macro dict_entry 3
+    nt_%1:
+    istruc word_header
+        at w_nt,    dd nametoken
+        at w_name,  db %2, 0x0
+        at w_immed, db %3
+        at w_xt,    dd %1
+    iend
+    %define nametoken nt_%1
+    %1:
+%endmacro
+
 section     .text
     extern  printf
+    extern  scanf
     global  _start      ;must be declared for linker (ld)
 
 _start:                 ;tell linker entry point
@@ -23,14 +37,7 @@ next:
     lodsd               ;fetch [esi] into eax and increment esi.
     jmp     eax         ;execute next instruction
 
-wh_doliteral:
-    istruc word_header
-        at w_nt,    dd 0x0
-        at w_name,  db 'DOLITERAL', 0x0
-        at w_immed, db 0x0
-        at w_xt,    dd doliteral
-    iend
-doliteral:
+dict_entry doliteral, 'DOLITERAL', 0x0
     lodsd               ;fetch [esi] into eax and increment esi.
     push     eax        ;push literal value to stack
     jmp     next
@@ -41,38 +48,17 @@ docolon:
     pop esi             ;return address to caller of docolon
     jmp next            ;execute next instruction at caller of docolon
 
-wh_exit:
-    istruc word_header
-        at w_nt,    dd wh_doliteral
-        at w_name,  db 'EXIT', 0x0
-        at w_immed, db 0x0
-        at w_xt,    dd exit
-    iend
-exit:
+dict_entry exit, 'EXIT', 0x0
     add ebp, 4
     mov esi, [ebp]      ;pop forth instruction pointer
     jmp next
 
-wh_bye:
-    istruc word_header
-        at w_nt,    dd wh_exit
-        at w_name,  db 'BYE', 0x0
-        at w_immed, db 0x0
-        at w_xt,    dd bye
-    iend
-bye:
+dict_entry bye, 'BYE', 0x0
     mov     ebx,0       ;error_code
     mov     eax,1       ;system call number (sys_exit)
     int     0x80        ;call kernel
 
-wh_dot:
-    istruc word_header
-        at w_nt,    dd wh_bye
-        at w_name,  db '.', 0x0
-        at w_immed, db 0x0
-        at w_xt,    dd dot
-    iend
-dot:
+dict_entry dot, '.', 0x0
     push    fmt_int
     call    printf
     add     esp, 8
@@ -81,7 +67,7 @@ dot:
     add     esp, 4
     jmp     next
 
-dots:
+dict_entry dots, '.s', 0x0
 ;prints stacksize and stack values like gforth:
 ;<<stacksize>> <val 1> <val 2> ... <val n>
     mov     eax, [SP0]
@@ -124,7 +110,8 @@ dots:
 
     jmp     next
 
-cword: ;( ch "token" -- str) ;pushes wordbf -- will overwrite prev word
+dict_entry cword, 'CWORD', 0x0
+;( ch "token" -- str) ;pushes wordbf -- will overwrite prev word
     pop     ebx         ;fetch ch
 
     push    esi         ;store registers
@@ -154,7 +141,7 @@ cword: ;( ch "token" -- str) ;pushes wordbf -- will overwrite prev word
     push    wordbf
     jmp     next
 
-find: ;( str -- str | xt 0|1|-1)
+dict_entry find, 'FIND', 0x0 ;( str -- str | xt 0|1|-1)
     pop     ebx         ;fetch str-addr
     push    esi         ;store registers
     push    edi
@@ -166,7 +153,9 @@ find: ;( str -- str | xt 0|1|-1)
 .findcmploop:
     cmpsb
     jne     .nextword
-    cmp     byte [esi], 0x0 ;end of string?
+    cmp     byte [esi], 0x0 ;end of searchstring?
+    jnz     .findcmploop
+    cmp     byte [edi], 0x0 ;end of found string?
     jz      .found
     jmp     .findcmploop
 .nextword:
@@ -191,11 +180,11 @@ find: ;( str -- str | xt 0|1|-1)
     push    eax         ;0|-1|1
     jmp     next
 
-execute: ;( xt -- )
+dict_entry execute, 'EXECUTE', 0x0 ;( xt -- )
     pop     ebx
     jmp     ebx
 
-tonumber: ;( str -- n)
+dict_entry tonumber, '>NUMBER', 0x0 ;( str -- n)
     pop     ebx         ;str-addr
     push    esi         ;store register
     mov     esi, ebx
@@ -215,26 +204,87 @@ tonumber: ;( str -- n)
     push    ebx
     jmp     next
 
+interpret_if:
+    ; if stack nozero, advance instruction pointer
+    pop     eax
+    test    eax, eax
+    jnz     .true
+    add     esi, 0x8
+    jmp     next
+.true:
+    jmp     next
+
+
+dict_entry interpret, 'INTERPRET-WORD', 0x0 ; ( str -- )
+    call    docolon
+    dd      blank
+    dd      cword
+    dd      find
+    dd      interpret_if
+    dd      execute
+    dd      exit
+    dd      tonumber
+    dd      exit
+
+dict_entry iaccept, 'ACCEPT', 0x0 ; ( -- )
+    ; `ACCEPT ( -- )` reads a line into the input buffer.
+   push     inputstream
+   push     fmt_string
+   call     scanf
+   add      esp, 8 ; remove parameters
+   jmp      next
+
+reset_returnstack:
+    mov     esp, [RS0]  ; 1. Empty the return stack.
+    jmp     next
+
+interpret_again:
+    ; check if inputstreampt points to 0
+    push    esi
+    mov     esi, [inputstreampt] ;src of next word
+    lodsb
+    test    al, al      ;0-terminator?
+    jz   .endofstr
+    pop     esi
+    sub     esi, 0x8
+    jmp     next
+.endofstr:
+    pop     esi
+    jmp     next
+
+dict_entry quit, 'QUIT', 0x0 ; ( -- )
+    call    docolon
+    dd      reset_returnstack
+    ; 2. `ACCEPT` a line of input into the input buffer.
+    dd      iaccept
+    ; 3. `INTERPRET` the input buffer until empty.
+    dd      interpret
+    dd      interpret_again
+    ; reset input buffer
+    mov     eax, inputstream
+    mov     [inputstreampt], eax
+    ; 4. Repeat from 2.
+
 ;;;;;;;;;;;;;; NATIVE STACK OPERATORS ;;;;;;;;;;;
 
-dup: ;( a -- a a)
+dict_entry dup, 'DUP', 0x0 ;( a -- a a)
     pop     eax
     push    eax
     push    eax
     jmp     next
 
-swap: ;( a b -- b a)
+dict_entry swap, 'SWAP', 0x0 ;( a b -- b a)
     pop     ebx
     pop     eax
     push    ebx
     push    eax
     jmp     next
 
-drop: ;( a -- )
+dict_entry drop, 'DROP', 0x0 ;( a -- )
     pop     eax
     jmp     next
 
-over: ;( a b -- a b a)
+dict_entry over, 'OVER', 0x0 ;( a b -- a b a)
     pop     ebx
     pop     eax
     push    eax
@@ -242,7 +292,7 @@ over: ;( a b -- a b a)
     push    eax
     jmp     next
 
-rot: ;( a b c -- b c a)
+dict_entry rot, 'ROT', 0x0 ;( a b c -- b c a)
     pop     ecx
     pop     ebx
     pop     eax
@@ -251,13 +301,13 @@ rot: ;( a b c -- b c a)
     push    eax
     jmp     next
 
-nip: ;( a b -- b)
+dict_entry nip, 'NIP', 0x0 ;( a b -- b)
     pop     ebx
     pop     eax
     push    ebx
     jmp     next
 
-tuck: ;( a b -- b a b)
+dict_entry tuck, 'TUCK', 0x0 ;( a b -- b a b)
     pop     ebx
     pop     eax
     push    ebx
@@ -267,7 +317,7 @@ tuck: ;( a b -- b a b)
 
 ;;;;;;;;;;;;;; NATIVE MATH OPERATORS ;;;;;;;;;;;
 
-star:
+dict_entry star, '*', 0x0
     pop     eax
     pop     ebx
     imul    eax, ebx
@@ -276,20 +326,13 @@ star:
 
 ;;;;;;;;;;;;;; COMPOSITE WORDS ;;;;;;;;;;;;;;;;;
 
-blank: ;( -- 32)        ; bl is reserved: it's a register
+dict_entry blank, 'BL', 0x0 ;( -- 32)        ; bl is reserved: it's a register
     call    docolon
     dd      doliteral
     dd      32          ; ' ' <SPACE>
     dd      exit
 
-wh_square:
-    istruc word_header
-        at w_nt,    dd wh_dot
-        at w_name,  db 'SQUARE', 0x0
-        at w_immed, db 0x0
-        at w_xt,    dd square
-    iend
-square:
+dict_entry square, 'SQUARE', 0x0
     call    docolon
     dd      dup
     dd      star
@@ -324,39 +367,21 @@ teststackops:
 ;;;;;;;;;;;;;; COMPILED FORTH CODE ;;;;;;;;;;;;;;;;;
 
 code:
-    dd      blank
-    dd      cword
-    dd      find
-    dd      drop
-    dd      tonumber
-    dd      blank
-    dd      cword
-    dd      find
-    dd      drop
-    dd      execute
-    dd      blank
-    dd      cword
-    dd      find
-    dd      drop
-    dd      execute
-    dd      blank
-    dd      cword
-    dd      find
-    dd      drop
-    dd      execute
+    dd      quit
 
 section     .data
 
 SP0             dd 0x0
 RS0             dd 0x0
-LATEST          dd wh_square   ;latest dict entry
+LATEST          dd nametoken   ;latest dict entry
 
 fmt_stacksize   db  '<%d>',0x0
 fmt_int         db  '%d',0x0
 fmt_space       db  ' ',0x0
 fmt_newline     db  0xa,0x0
+fmt_string      db  '%s', 0x0
 
 wordbf          times 32 db 0
 
-inputstream     db  '43 SQUARE . BYE',0x0
+inputstream     times 512 db 0
 inputstreampt   dd  inputstream
